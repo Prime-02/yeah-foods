@@ -1,7 +1,7 @@
 "use client";
 
 import { navItems } from "@/app/reusables";
-import { ShoppingBag, X, Menu } from "lucide-react";
+import { ShoppingBag, X, Menu, User } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import React, { useState, useEffect } from "react";
@@ -10,6 +10,8 @@ import Modal from "../Modal/Modal";
 import AdminLogin from "./AdminLogin";
 import UserLogin from "./UserLogin";
 import UserSignUp from "./UserSignUp";
+import UserProfile from "../ui/UserProfile";
+import { getCurrentUser, signOut } from "@/lib/appwrite";
 
 const NavBar = ({ cartComponent, cartItemCount = 0 }) => {
   const [isPanelOpen, setIsPanelOpen] = useState(false);
@@ -17,6 +19,36 @@ const NavBar = ({ cartComponent, cartItemCount = 0 }) => {
   const [admin, setAdmin] = useState(false);
   const [userLogin, setUserLogin] = useState(false);
   const [userSignUp, setUserSignUp] = useState(false);
+  const [userProfile, setUserProfile] = useState(false);
+
+  // Session state
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isCheckingSession, setIsCheckingSession] = useState(true);
+  const [userName, setUserName] = useState("")
+  // Check user session on component mount
+  useEffect(() => {
+    const checkUserSession = async () => {
+      try {
+        setIsCheckingSession(true);
+        const user = await getCurrentUser();
+        if (user) {
+          setIsLoggedIn(true);
+          setUserName(user.name);
+        } else {
+          setIsLoggedIn(false);
+          setUserName(null);
+        }
+      } catch (error) {
+        console.error("Session check failed:", error);
+        setIsLoggedIn(false);
+        setUserName(null);
+      } finally {
+        setIsCheckingSession(false);
+      }
+    };
+
+    checkUserSession();
+  }, []);
 
   const togglePanel = () => {
     setIsPanelOpen(!isPanelOpen);
@@ -30,10 +62,19 @@ const NavBar = ({ cartComponent, cartItemCount = 0 }) => {
     setAdmin(false);
     setUserLogin(false);
     setUserSignUp(false);
+    setUserProfile(false);
   };
 
   const handleAdminClick = () => {
     setAdmin(true);
+  };
+
+  const handleUserClick = () => {
+    if (isLoggedIn) {
+      setUserProfile(true);
+    } else {
+      setUserLogin(true);
+    }
   };
 
   const switchToSignUp = () => {
@@ -47,8 +88,40 @@ const NavBar = ({ cartComponent, cartItemCount = 0 }) => {
   };
 
   const handleCheckout = () => {
-    setUserLogin(true);
-    setIsPanelOpen(false);
+    if (isLoggedIn) {
+      // Proceed with checkout logic here
+      setIsPanelOpen(false);
+      // You can add checkout navigation or logic here
+    } else {
+      setUserLogin(true);
+      setIsPanelOpen(false);
+    }
+  };
+
+  // Handle successful login/signup
+  const handleAuthSuccess = async () => {
+    try {
+      const user = await getCurrentUser();
+      if (user) {
+        setIsLoggedIn(true);
+        setUserName(user.name);
+      }
+    } catch (error) {
+      console.error("Error refreshing user session:", error);
+    }
+    closeModal();
+  };
+
+  // Handle sign out
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      setIsLoggedIn(false);
+      setUserName(null);
+      closeModal();
+    } catch (error) {
+      console.error("Sign out error:", error);
+    }
   };
 
   // Handle keyboard navigation for accessibility
@@ -61,13 +134,20 @@ const NavBar = ({ cartComponent, cartItemCount = 0 }) => {
         if (isMobileMenuOpen) {
           setIsMobileMenuOpen(false);
         }
-        if (admin || userLogin || userSignUp) {
+        if (admin || userLogin || userSignUp || userProfile) {
           closeModal();
         }
       }
     };
 
-    if (isPanelOpen || isMobileMenuOpen || admin || userLogin || userSignUp) {
+    if (
+      isPanelOpen ||
+      isMobileMenuOpen ||
+      admin ||
+      userLogin ||
+      userSignUp ||
+      userProfile
+    ) {
       document.addEventListener("keydown", handleKeyDown);
       // Prevent body scroll when panel is open
       document.body.style.overflow = "hidden";
@@ -79,32 +159,83 @@ const NavBar = ({ cartComponent, cartItemCount = 0 }) => {
       document.removeEventListener("keydown", handleKeyDown);
       document.body.style.overflow = "unset";
     };
-  }, [isPanelOpen, isMobileMenuOpen, admin, userLogin, userSignUp]);
+  }, [
+    isPanelOpen,
+    isMobileMenuOpen,
+    admin,
+    userLogin,
+    userSignUp,
+    userProfile,
+  ]);
 
   const getModalTitle = () => {
     if (admin) return "Admin Login";
     if (userLogin) return "Login";
     if (userSignUp) return "Sign Up";
+    if (userProfile) return "Profile";
     return "";
+  };
+
+  const renderAuthButton = () => {
+    if (isCheckingSession) {
+      return (
+        <div className="h-12 w-12 flex items-center justify-center bg-gray-100 rounded-full animate-pulse">
+          <User size={20} className="text-gray-400" />
+        </div>
+      );
+    }
+
+    if (isLoggedIn) {
+      return (
+        <Button
+          onClick={handleUserClick}
+          className="h-12 px-4 flex items-center justify-center bg-green-600 text-white rounded-full hover:bg-green-700 transition-colors focus:outline-none focus:ring-2 focus:ring-green-300 focus:ring-offset-2"
+          icon={<User size={20} />}
+          text={userName ? userName.split(" ")[0] : "Profile"}
+          title={`Logged in as ${userName || "User"} - Click to view profile`}
+        />
+      );
+    }
+
+    return (
+      <Button
+        onClick={handleUserClick}
+        className="h-12 px-4 flex items-center justify-center bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-300 focus:ring-offset-2"
+        text="Sign In"
+        icon={<User size={20} />}
+        title="Sign in to your account"
+      />
+    );
   };
 
   return (
     <>
       <Modal
-        isOpen={admin || userLogin || userSignUp}
+        isOpen={admin || userLogin || userSignUp || userProfile}
         onClose={closeModal}
         title={getModalTitle()}
       >
         {admin && <AdminLogin onClose={closeModal} />}
         {userLogin && (
-          <UserLogin toggle={switchToSignUp} onClose={closeModal} />
+          <UserLogin
+            toggle={switchToSignUp}
+            onClose={closeModal}
+            onSuccess={handleAuthSuccess}
+          />
         )}
         {userSignUp && (
-          <UserSignUp toggle={switchToLogin} onClose={closeModal} />
+          <UserSignUp
+            toggle={switchToLogin}
+            onClose={closeModal}
+            onSuccess={handleAuthSuccess}
+          />
+        )}
+        {userProfile && (
+          <UserProfile onClose={closeModal} onSignOut={handleSignOut} />
         )}
       </Modal>
 
-      <header className="py-5 backdrop-blur-3xl rounded-full sticky top-0 z-10 bg-white/80 shadow-sm">
+      <header className="mt-5 backdrop-blur-3xl rounded-full sticky top-0 z-10 bg-white/80 shadow-sm">
         <div className="container mx-auto px-4">
           <div className="flex justify-between items-center max-w-7xl mx-auto">
             {/* Logo */}
@@ -139,7 +270,7 @@ const NavBar = ({ cartComponent, cartItemCount = 0 }) => {
               ))}
             </nav>
 
-            {/* Mobile Menu Button & Cart Button */}
+            {/* Mobile Menu Button, Auth Button & Cart Button */}
             <div className="flex items-center gap-3">
               {/* Mobile Menu Button */}
               <button
@@ -150,13 +281,16 @@ const NavBar = ({ cartComponent, cartItemCount = 0 }) => {
                 <Menu size={20} />
               </button>
 
+              {/* Auth Button - Hidden on mobile, shown in mobile menu */}
+              <div className="hidden sm:block">{renderAuthButton()}</div>
+
               {/* Cart Button */}
               <div className="flex-shrink-0 relative">
                 <Button
                   onClick={togglePanel}
                   className="h-12 w-12 flex items-center justify-center bg-black text-white rounded-full hover:bg-gray-800 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-300 focus:ring-offset-2"
                   icon={<ShoppingBag size={20} />}
-                  aria-label={`Open cart${
+                  title={`Open cart${
                     cartItemCount > 0 ? ` (${cartItemCount} items)` : ""
                   }`}
                 />
@@ -212,17 +346,10 @@ const NavBar = ({ cartComponent, cartItemCount = 0 }) => {
             </ul>
           </nav>
 
-          {/* Mobile Menu Footer */}
-          <div className="border-t pt-4">
-            <button
-              onClick={() => {
-                setUserLogin(true);
-                setIsMobileMenuOpen(false);
-              }}
-              className="w-full bg-black text-white py-3 rounded-full hover:bg-gray-800 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-300 focus:ring-offset-2"
-            >
-              Sign In
-            </button>
+          {/* Mobile Menu Footer - Auth Button */}
+          <div className="border-t pt-4 space-y-3">
+            {/* Auth Button for Mobile */}
+            <div className="w-full">{renderAuthButton()}</div>
           </div>
         </div>
       </div>
@@ -277,14 +404,15 @@ const NavBar = ({ cartComponent, cartItemCount = 0 }) => {
             </div>
             <Button
               className="w-full bg-black text-white py-3 rounded-full hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-gray-300 focus:ring-offset-2"
-              text="Checkout"
+              text={isLoggedIn ? "Checkout" : "Sign In to Checkout"}
               onClick={handleCheckout}
               disabled={cartItemCount === 0}
-              aria-describedby="checkout-description"
+              title={
+                isLoggedIn
+                  ? "Proceed to checkout with your cart items"
+                  : "Sign in to proceed with checkout"
+              }
             />
-            <p id="checkout-description" className="sr-only">
-              Proceed to checkout with your cart items
-            </p>
           </div>
         </div>
       </div>

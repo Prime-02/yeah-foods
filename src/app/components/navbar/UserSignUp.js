@@ -16,8 +16,15 @@ const UserSignUp = ({ toggle = () => {} }) => {
 
   const [errors, setErrors] = useState({});
 
-  const handleSignUp = async () => {
-    // Basic validation
+  const handleInputChange = (field, value) => {
+    setSignupForm((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
+  const handleSignUp = async (e) => {
+    e?.preventDefault(); // Handle form submission
     const newErrors = {};
 
     if (!signupForm.username.trim()) {
@@ -28,7 +35,9 @@ const UserSignUp = ({ toggle = () => {} }) => {
 
     if (!signupForm.email.trim()) {
       newErrors.email = "Email is required";
-    } else if (!/^\S+@\S+\.\S+$/.test(signupForm.email)) {
+    } else if (
+      !/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(signupForm.email)
+    ) {
       newErrors.email = "Email is invalid";
     }
 
@@ -48,8 +57,6 @@ const UserSignUp = ({ toggle = () => {} }) => {
       return;
     }
 
-    // If validation passes
-    if (!validateFields(signupForm)) return;
     setLoading("creating_user");
     try {
       const createdUser = await createUser(
@@ -60,25 +67,25 @@ const UserSignUp = ({ toggle = () => {} }) => {
       console.log("Registration data:", createdUser);
     } catch (error) {
       console.error("Registration failed:", error);
-      // Handle error (show error message, etc.)
+      setErrors({
+        general: error.message || "Registration failed. Please try again.",
+      });
     } finally {
       setLoading(null);
     }
   };
 
   return (
-    <div className="flex flex-col gap-y-3">
+    <form onSubmit={handleSignUp} className="flex flex-col gap-y-3">
+      {errors.general && (
+        <div className="text-red-500 text-sm">{errors.general}</div>
+      )}
       <span>
         <TextInput
           type="text"
           placeholder="Username"
           value={signupForm.username}
-          onChange={(e) => {
-            setSignupForm((prev) => ({
-              ...prev,
-              username: e,
-            }));
-          }}
+          onChange={(e) => handleInputChange("username", e)}
           error={errors.username}
         />
       </span>
@@ -87,12 +94,7 @@ const UserSignUp = ({ toggle = () => {} }) => {
           type="email"
           placeholder="Enter Email"
           value={signupForm.email}
-          onChange={(e) => {
-            setSignupForm((prev) => ({
-              ...prev,
-              email: e,
-            }));
-          }}
+          onChange={(e) => handleInputChange("email", e)}
           error={errors.email}
         />
       </span>
@@ -101,12 +103,7 @@ const UserSignUp = ({ toggle = () => {} }) => {
           type="password"
           placeholder="Enter Password"
           value={signupForm.password}
-          onChange={(e) => {
-            setSignupForm((prev) => ({
-              ...prev,
-              password: e,
-            }));
-          }}
+          onChange={(e) => handleInputChange("password", e)}
           error={errors.password}
         />
       </span>
@@ -115,12 +112,7 @@ const UserSignUp = ({ toggle = () => {} }) => {
           type="password"
           placeholder="Confirm Password"
           value={signupForm.confirmPassword}
-          onChange={(e) => {
-            setSignupForm((prev) => ({
-              ...prev,
-              confirmPassword: e,
-            }));
-          }}
+          onChange={(e) => handleInputChange("confirmPassword", e)}
           error={errors.confirmPassword}
         />
       </span>
@@ -133,18 +125,16 @@ const UserSignUp = ({ toggle = () => {} }) => {
           disabled={loading === "creating_user"}
         />
       </span>
-      <span
-        onClick={toggle}
-        className="flex items-center justify-center mt-2 text-xs w-full"
-      >
+      <span className="flex items-center justify-center mt-2 text-xs w-full">
         Already have an account?{" "}
-        {
-          <span className="text-green-500 hover:text-green-600 font-semibold cursor-pointer">
-            Login
-          </span>
-        }
+        <button
+          onClick={toggle}
+          className="text-green-500 hover:text-green-600 font-semibold cursor-pointer"
+        >
+          Login
+        </button>
       </span>
-    </div>
+    </form>
   );
 };
 
