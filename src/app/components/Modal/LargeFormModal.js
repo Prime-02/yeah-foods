@@ -1,7 +1,6 @@
 import { ArrowLeft, ArrowRight, X } from "lucide-react";
 import React, { useEffect, useState, useCallback } from "react";
 import Button from "../reusables/buttons/Buttons";
-import { Textinput } from "../inputs/Textinput";
 import { BASE_URL, largeFormOptions } from "../index";
 import { useGlobalState } from "@/app/GlobalStateProvider";
 import { PostAllData } from "../../../functions/Posts";
@@ -10,6 +9,7 @@ import {
   removeEmptyStringValues,
 } from "../../../functions/utils";
 import { GetAllData } from "../../../functions/Get";
+import TextInput from "../inputs/TextInput";
 
 const LargeFormModal = ({
   isOpen,
@@ -340,7 +340,7 @@ const LargeFormModal = ({
   }, [form.matter.contract_signed.value]);
 
   // Handle form input changes
-  const handleChange = (section, index, key, value) => {
+  const handleChange = (section, index, key, value = "" ) => {
     setForm((prevForm) => {
       const updatedForm = { ...prevForm };
 
@@ -360,7 +360,7 @@ const LargeFormModal = ({
         if (
           updatedForm[section][key].type === "phone" &&
           value &&
-          !value.startsWith("+")
+          !value?.startsWith("+")
         ) {
           updatedForm[section][key].value = `+${value}`;
         } else {
@@ -371,7 +371,7 @@ const LargeFormModal = ({
         if (
           updatedForm[section][index][key].type === "phone" &&
           value &&
-          !value.startsWith("+")
+          !value?.startsWith("+")
         ) {
           updatedForm[section][index][key].value = `+${value}`;
         } else {
@@ -1089,7 +1089,7 @@ const LargeFormModal = ({
     const hasError = formErrors[errorKey];
 
     return (
-      <Textinput
+      <TextInput
         key={`${section}-${index}-${key}`}
         label={field.label}
         value={field.value}
